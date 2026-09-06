@@ -1,0 +1,35 @@
+locations:
+  - name: "Ростов-на-Дону"
+    patterns: ['\bростов\w*', '\bрнд\b']
+  - name: "Аксай"
+    patterns: ['\bакса[йея]\w*']
+  - name: "Батайск"
+    patterns: ['\bбатайск\w*']
+  - name: "Щепкин"
+    patterns: ['\bщепкин\w*']
+  - name: "Темерницкий"
+    patterns: ['\bтемерницк\w*']
+  - name: "Ясная Поляна"
+    patterns: ['\bясн\w*\s+полян\w*']
+  - name: "Рассвет"
+    patterns: ['\bрассвет\w*']
+  - name: "Ольгинская"
+    patterns: ['\bольгинск\w*']
+  - name: "Чалтырь"
+    patterns: ['\bчалтыр\w*']
+  - name: "Крым"
+    patterns: ['\bкрым\w*']
+  - name: "Ленинакан"
+    patterns: ['\bленинакан\w*']
+  - name: "Ленинаван"
+    patterns: ['\bленинаван\w*']
+  - name: "Большие Салы"
+    patterns: ['\bбольш\w*\s+сал\w*']
+  - name: "Султан-Салы"
+    patterns: ['\bсултан[- ]сал\w*']
+  - name: "Азов"
+    patterns: ['\bазов\w*']
+  - name: "Новочеркасск"
+    patterns: ['\bновочеркасск\w*']
+  - name: "Таганрог"
+    patterns: ['\bтаганрог\w*']

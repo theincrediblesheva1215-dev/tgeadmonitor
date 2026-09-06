@@ -1,0 +1,32 @@
+# Источники. Новые чаты добавляются сюда — код менять не нужно.
+# chat_id — числовой id в формате -100XXXXXXXXXX (для супергрупп/каналов).
+# Если chat_id неизвестен, можно указать только username — id будет разрешён при старте.
+chats:
+  - id: aksay_ads
+    chat_id: -100123456789
+    username: aksay_ads
+    name: "Аксай объявления"
+    location: "Аксай"
+    district: "Аксайский район"
+    kind: "объявления"
+    enabled: true
+    priority: 2
+    comment: "самый живой чат по стройке"
+
+  - id: shchepkin_neighbors
+    chat_id: -100987654321
+    name: "Щепкин | соседи"
+    location: "Щепкин"
+    district: "Аксайский район"
+    kind: "соседи"
+    enabled: true
+    priority: 1
+
+  - id: bataysk_talk
+    chat_id: -100555555555
+    name: "Батайск чат"
+    location: "Батайск"
+    kind: "городской чат"
+    enabled: false
+    priority: 1
+    comment: "выключен: много флуда, включить после проверки"

@@ -1,0 +1,118 @@
+"""Точка входа: один процесс — listener + notifier + pipeline."""
+from __future__ import annotations
+
+import asyncio
+import logging
+import signal
+import sys
+
+from src.config.loader import ConfigError, load_config
+from src.metrics import Metrics
+from src.processing.pipeline import Pipeline
+from src.settings import Settings, SettingsError
+from src.storage.database import Database
+from src.telegram.listener import Listener, build_client
+from src.telegram.notifier import Notifier
+
+log = logging.getLogger("main")
+
+
+async def metrics_loop(metrics: Metrics, interval: int = 3600) -> None:
+    while True:
+        await asyncio.sleep(interval)
+        metrics.log_summary()
+
+
+async def run() -> None:
+    try:
+        settings = Settings.from_env()
+    except SettingsError as e:
+        print(f"Settings error: {e}", file=sys.stderr)
+        sys.exit(2)
+
+    logging.basicConfig(level=settings.log_level,
+                        format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    logging.getLogger("telethon").setLevel(logging.WARNING)
+
+    try:
+        cfg = load_config(settings.config_dir)   # все regex компилируются здесь; ошибка = падение на старте
+    except ConfigError as e:
+        log.error("Config error: %s", e)
+        sys.exit(2)
+    log.info("Config loaded: %d chats (%d enabled), %d products, %d intents, %d sell rules, %d locations",
+             len(cfg.chats), len(cfg.enabled_chats()), len(cfg.products), len(cfg.intents),
+             len(cfg.sell_rules), len(cfg.locations))
+
+    settings.data_dir.mkdir(parents=True, exist_ok=True)
+    db = Database(settings.db_path)
+    metrics = Metrics()
+
+    notifier = Notifier(settings.bot_token, settings.owner_chat_id, db, metrics)
+    await notifier.start()
+
+    pipeline = Pipeline(cfg, db, notifier, metrics, store_all=settings.store_all_messages)
+
+    client = build_client(settings.api_id, settings.api_hash, settings.session, settings.data_dir)
+    await client.connect()
+    if not await client.is_user_authorized():
+        log.error("Telegram account is not authorized. Run: python -m tools.login")
+        sys.exit(2)
+    me = await client.get_me()
+    log.info("MTProto authorized as %s (id=%s)", me.username or me.first_name, me.id)
+
+    listener = Listener(client, cfg.enabled_chats(), pipeline.handle)
+    available = await listener.resolve_chats()
+    if not available:
+        log.error("No available chats. Check config/chats.yaml and account membership.")
+        sys.exit(2)
+    for chat in available:
+        pipeline.register_chat(chat)
+    db.upsert_sources(available)
+    listener.register()
+    log.info("Monitoring %d chats", len(available))
+
+    stop = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        try:
+            loop.add_signal_handler(sig, stop.set)
+        except NotImplementedError:  # Windows
+            pass
+
+    tasks = [
+        asyncio.create_task(notifier.run_sender(), name="sender"),
+        asyncio.create_task(notifier.run_polling(), name="polling"),
+        asyncio.create_task(metrics_loop(metrics), name="metrics"),
+        asyncio.create_task(client.run_until_disconnected(), name="telethon"),
+        asyncio.create_task(stop.wait(), name="stop"),
+    ]
+    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+    for t in done:
+        if t.get_name() == "telethon" and t.exception():
+            log.error("Telethon stopped with error: %s", t.exception())
+    for t in pending:
+        t.cancel()
+    await asyncio.gather(*pending, return_exceptions=True)
+
+    metrics.log_summary()
+    await client.disconnect()
+    await notifier.close()
+    db.close()
+    log.info("Stopped")
+
+
+def main() -> None:
+    while True:
+        try:
+            asyncio.run(run())
+            return
+        except SystemExit:
+            raise
+        except Exception:
+            log.exception("Fatal error, restarting in 15s")
+            import time
+            time.sleep(15)
+
+
+if __name__ == "__main__":
+    main()
