@@ -5,7 +5,7 @@ import pytest
 from src.config.loader import Chat, load_config
 from src.processing.classifier import Classifier
 
-CONFIG_DIR = Path(__file__).resolve().parents[1] / "config"
+CONFIG_DIR = Path(__file__).resolve().parents[2] / "config"
 
 
 @pytest.fixture(scope="module")
